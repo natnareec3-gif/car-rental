@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Car Rental System - Pro Edition</title>
+    <style>
+        :root { --sidebar-width: 260px; --primary: #4e73df; --dark: #224abe; --luxury: #f6c23e; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Kanit', sans-serif; }
+        
+        body { display: flex; min-height: 100vh; background: #f8f9fc; }
+        #login-page {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+            display: flex; justify-content: center; align-items: center; z-index: 9999;
+        }
+        .login-card { background: white; padding: 40px; border-radius: 15px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+
+        .sidebar { width: var(--sidebar-width); background: linear-gradient(180deg, #4e73df 10%, #224abe 100%); color: white; display: none; flex-direction: column; }
+        .content { flex: 1; padding: 40px; display: none; }
+        
+        .profile-section { padding: 30px 20px; text-align: center; background: rgba(0,0,0,0.1); }
+        .profile-img { width: 80px; height: 80px; border-radius: 50%; border: 3px solid white; margin: 0 auto 10px; overflow: hidden; background: #eee; }
+        .profile-img img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 25px; margin-bottom: 20px; }
+        .car-selector { display: grid; grid-template-columns: 2fr 4fr; gap: 30px; }
+        .car-list { border: 1px solid #e3e6f0; border-radius: 8px; max-height: 500px; overflow-y: auto; }
+        .car-box { padding: 15px; border-bottom: 1px solid #e3e6f0; cursor: pointer; transition: 0.2s; }
+        .car-box:hover { background: #f8f9fc; }
+        .car-box.selected { background: #eaecf4; border-left: 5px solid var(--primary); }
+        
+        .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; color: white; margin-left: 5px; vertical-align: middle; }
+        .badge-eco { background: #1cc88a; }
+        .badge-luxury { background: var(--luxury); color: #000; font-weight: bold; }
+
+        .img-box { width: 100%; height: 350px; background: #eaecf4; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 15px; border: 1px solid #e3e6f0; }
+        .img-box img { width: 100%; height: 100%; object-fit: contain; }
+
+        .nav-item { padding: 15px 25px; cursor: pointer; }
+        .nav-item.active { background: rgba(255,255,255,0.1); border-left: 4px solid white; }
+        .logout-btn { background: #e74a3b; padding: 15px; color: white; border: none; cursor: pointer; margin-top: auto; font-weight: bold; }
+        
+        input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #d1d3e2; }
+        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { filter: brightness(1.1); }
+        
+        .page { display: none; }
+        .page.active { display: block; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; border-bottom: 1px solid #e3e6f0; text-align: left; }
+
+        .price-breakdown { font-size: 0.85rem; color: #858796; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-page">
+        <div class="login-card">
+            <h1 style="color: #4e73df; margin-bottom: 10px;">Auto Booking</h1>
+            <p style="color: #858796; margin-bottom: 20px;">Premium Car Rental Service</p>
+            <input type="text" id="login-username" placeholder="Enter your name to start">
+            <button onclick="handleLogin()">Enter System</button>
+        </div>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="profile-section">
+            <div class="profile-img"><img id="user-avatar" src=""></div>
+            <div id="user-display-name" style="font-weight: bold;"></div>
+            <div style="font-size: 0.8rem; color: #3be2ab;">● Online</div>
+        </div>
+        <div class="nav-item active" onclick="switchPage('rent', this)">Rent a Car</div>
+        <div class="nav-item" onclick="switchPage('return', this)">Active Rentals</div>
+        <button class="logout-btn" onclick="handleLogout()">Logout System</button>
+    </div>
+
+    <div class="content" id="main-content">
+        <div id="page-rent" class="page active">
+            <h2>Select Vehicle</h2>
+            <div class="card car-selector">
+                <div class="car-list" id="car-options"></div>
+                <div class="preview-container">
+                    <div class="img-box" id="car-img"><span>Select a vehicle to preview</span></div>
+                    
+                    <label style="font-size: 0.9rem; font-weight: bold;">Rental Duration (Days):</label>
+                    <input type="number" id="rent-days" value="1" min="1" oninput="calculateTotal()">
+                    
+                    <div style="margin: 15px 0;">
+                        <div id="price-info" class="price-breakdown">Select a car to see pricing</div>
+                        <div id="total-price" style="font-size: 1.8rem; font-weight: bold; color: #4e73df; margin-top: 5px;">Total: 0 Baht</div>
+                    </div>
+                    
+                    <button id="confirm-btn" onclick="confirmRental()" style="font-size: 1.1rem; height: 55px;">Confirm Booking</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-return" class="page">
+            <h2>Your Current Rentals</h2>
+            <div class="card">
+                <table>
+                    <thead>
+                        <tr><th>Renter</th><th>Vehicle Model</th><th>Duration</th><th>Total Price</th><th>Action</th></tr>
+                    </thead>
+                    <tbody id="rental-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === Data (From Java Vehicle Logic) ===
+        const cars = [
+              { id: 'C1', brand: 'Mitsubishi', model: 'Mirage 1.2 Active A/T 2023', price: 800, type: 'Economy', img: 'https://expatautocm.com/wp-content/uploads/2024/01/Mitsubishi-Mirage-VHT681.jpg' },
+
+            { id: 'C2', brand: 'Toyota', model: 'Yaris 2025', price: 900, type: 'Economy', img: 'https://www.toyota.com.co/images/yaris/versions/negro-mica.png' },
+
+            { id: 'C3', brand: 'Honda', model: 'City Hatchback SV 2023', price: 1200, type: 'Economy', img: 'https://cdn.carsome.co.th/news/j3aggbpB-Screenshot-2022-11-17-133016.jpg' },
+
+            { id: 'C4', brand: 'Nissan', model: 'Almera 2024', price: 1500, type: 'Economy', img: 'https://autostation.com/wp-content/uploads/2024/01/10264248_844031022283597_1505214525741057516_o.jpg' },
+
+            { id: 'C5', brand: 'Mazda', model: 'CX-30', price: 2500, type: 'Economy', img: 'https://www.9carthai.com/wp-content/uploads/2025/07/Mazda-CX-30-Essential-2025.jpg' },
+
+            { id: 'L1', brand: 'Nissan', model: 'Z', price: 5500, type: 'Luxury', img: 'https://cf.autodeft2.pw/uploads/images/2021/Nissan/Nissan%20Z/Official/2023-Nissan-Z-Couype-2.jpg' },
+
+            { id: 'L2', brand: 'Mercedes-Benz', model: 'C-Class', price: 7200, type: 'Luxury', img: 'https://www.mercedes-benz.co.th/content/dam/thailand/passenger%20cars/c-class/2.%20L-%20C-Class%20Coupe%20Exterior%20Main_3302x1858_V1R0.jpg/1740040726233.jpg?im=Crop,rect=(0,0,3302,1857);Resize=(1850,1040)' },
+
+            { id: 'L3', brand: 'Mercedes-Benz', model: 'Amg gt 63 S 4MATIC+', price: 28000, type: 'Luxury', img: 'https://www.perfectautocollection.com/imagetag/3467/2/l/Used-2020-Mercedes-Benz-AMG%C2%AE-GT-63-S-4MATIC%C2%AE-1722002370.jpg' },
+
+            { id: 'L4', brand: 'Porsche', model: '911 Carrera S', price: 30000, type: 'Luxury', img: 'https://res.cloudinary.com/unix-center/image/upload/c_limit,dpr_3.0,f_auto,fl_progressive,g_center,h_580,q_75,w_906/kpjpk6syexcbruz7gasd.jpg' },
+
+            { id: 'L5', brand: 'Lamborghini', model: 'Huracan STO', price: 40000, type: 'Luxury', img: 'https://cdn.auto-swiat.pl/1/pG4k9lBaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy82YjNkN2I0NWJkODY5NTNhZjA0ODc3Y2I3YzVhMzQwYS5qcGeSlQPNBgrNAxfNGFnNDbKTBc0JYM0E7N4AAqEwB6ExBA' },
+
+            { id: 'L6', brand: 'Ferrari', model: 'SF90 Stradale', price: 50000, type: 'Luxury', img: 'https://cdn.motor1.com/images/mgl/qkk7zv/s1/novitec-ferrari-sf90-stradale-2022.webp' }
+        ];
+
+        let selectedCar = null;
+        let activeRentals = [];
+
+        function handleLogin() {
+            const user = document.getElementById('login-username').value;
+            if(!user) return alert("Please enter your name!");
+            localStorage.setItem('username', user);
+            localStorage.setItem('avatar', `https://api.dicebear.com/7.x/avataaars/svg?seed=${user}`);
+            showDashboard();
+        }
+
+        function showDashboard() {
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('sidebar').style.display = 'flex';
+            document.getElementById('main-content').style.display = 'block';
+            document.getElementById('user-display-name').innerText = localStorage.getItem('username');
+            document.getElementById('user-avatar').src = localStorage.getItem('avatar');
+            loadCars();
+        }
+
+        function loadCars() {
+            const list = document.getElementById('car-options');
+            list.innerHTML = cars.map(car => `
+                <div class="car-box" onclick="selectCar('${car.id}')" id="car-${car.id}">
+                    <strong>${car.brand} ${car.model}</strong> 
+                    <span class="badge ${car.type === 'Luxury' ? 'badge-luxury' : 'badge-eco'}">${car.type}</span>
+                    <br><small>${car.price.toLocaleString()} Baht/day</small>
+                </div>
+            `).join('');
+        }
+
+        function selectCar(id) {
+            selectedCar = cars.find(c => c.id === id);
+            document.querySelectorAll('.car-box').forEach(b => b.classList.remove('selected'));
+            document.getElementById('car-' + id).classList.add('selected');
+            document.getElementById('car-img').innerHTML = `<img src="${selectedCar.img}">`;
+            calculateTotal();
+        }
+
+        // === OOP Logic (Polymorphism) ===
+        function calculateTotal() {
+            if(!selectedCar) return;
+            const days = parseInt(document.getElementById('rent-days').value) || 1;
+            let finalPrice = selectedCar.price * days;
+            let infoText = `Base Price: ${selectedCar.price.toLocaleString()} x ${days} days`;
+
+            // If Luxury, add 20% tax/service (Same as Java LuxuryCar class)
+            if(selectedCar.type === 'Luxury') {
+                const luxurySurcharge = finalPrice * 0.2;
+                finalPrice += luxurySurcharge;
+                infoText += ` + 20% Luxury Surcharge (${luxurySurcharge.toLocaleString()} Baht)`;
+            }
+
+            document.getElementById('price-info').innerText = infoText;
+            document.getElementById('total-price').innerText = `Total: ${finalPrice.toLocaleString()} Baht`;
+            return finalPrice;
+        }
+
+        function confirmRental() {
+            if(!selectedCar) return alert('Please select a car first!');
+            const total = calculateTotal();
+            const name = localStorage.getItem('username');
+            
+            activeRentals.push({ 
+                rentId: Date.now(), 
+                name: name, 
+                car: `${selectedCar.brand} ${selectedCar.model} (${selectedCar.type})`, 
+                days: document.getElementById('rent-days').value, 
+                total: total 
+            });
+            
+            alert(`Booking successful for ${name}!`);
+            switchPage('return', document.querySelectorAll('.nav-item')[1]);
+        }
+
+        function switchPage(page, element) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById('page-' + page).classList.add('active');
+            element.classList.add('active');
+            if(page === 'return') renderReturnTable();
+        }
+
+        function renderReturnTable() {
+            const body = document.getElementById('rental-body');
+            if(activeRentals.length === 0) {
+                body.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 50px; color: #858796;">No active rentals found.</td></tr>'; 
+                return;
+            }
+            body.innerHTML = activeRentals.map(r => `
+                <tr>
+                    <td><strong>${r.name}</strong></td>
+                    <td>${r.car}</td>
+                    <td>${r.days} Days</td>
+                    <td style="color: #4e73df; font-weight:bold;">${r.total.toLocaleString()} Baht</td>
+                    <td><button onclick="returnCar(${r.rentId})" style="background:#e74a3b; width:auto; padding: 5px 15px;">Return</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function returnCar(id) {
+            if(confirm('Are you sure you want to return this vehicle?')) {
+                activeRentals = activeRentals.filter(r => r.rentId !== id);
+                renderReturnTable();
+            }
+        }
+
+        function handleLogout() { localStorage.clear(); location.reload(); }
+    </script>
+</body>
+</html>
